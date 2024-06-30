@@ -9,41 +9,6 @@ Window {
     visible: true
     title: qsTr("OpencvToQml")
 
-    RowLayout {
-        id: imageRect
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: parent.verticalCenter
-        width: parent.width
-        height: parent.height
-
-        Image {
-            id: opencvImage
-            fillMode: Image.PreserveAspectFit
-            source: "image://live/image"
-            cache: false
-            Layout.maximumHeight: 600
-            Layout.maximumWidth: 800
-
-            function reload() {
-                source = "image://live/image?id=" + Date.now()
-            }
-        }
-
-        Image {
-            id: whiteboardSpace
-            fillMode: Image.PreserveAspectFit
-            source: "image://whiteboard/image"
-            cache: false
-            Layout.maximumHeight: 600
-            Layout.maximumWidth: 800
-            Layout.alignment: Qt.AlignRight
-
-            function reload() {
-                source = "image://whiteboard/image?id=" + Date.now()
-            }
-        }
-    }
-
     Button {
         text: "Clear Whiteboard"
         anchors.bottom: parent.bottom
@@ -56,21 +21,68 @@ Window {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         onClicked: {
-            var filePath = "snapshot.png"
+            var filePath = "snapshot1.png"
             WhiteboardManager.saveSnapshot(filePath)
             console.log("Snapshot saved to " + filePath)
         }
     }
 
-    Connections{
+    RowLayout {
+        id: imageRect
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        width: parent.width
+        height: parent.height
 
-        target: liveImageProvider
-        function onImageChanged() {
-            opencvImage.reload()
+        // Image {
+        //     id: opencvImage
+        //     fillMode: Image.PreserveAspectFit
+        //     source: "image://live/image"
+        //     cache: false
+        //     Layout.maximumHeight: 600
+        //     Layout.maximumWidth: 800
+
+        //     function reload() {
+        //         source = "image://live/image?id=" + Date.now()
+        //     }
+        // }
+        Item {
+            focus: true
+            Keys.onPressed: {
+                if (event.key === Qt.Key_Control) {
+                    WhiteboardManager.enableDrawing()
+                }
+            }
+
+            Keys.onReleased: {
+                if (event.key === Qt.Key_Control) {
+                    WhiteboardManager.disableDrawing()
+                }
+            }
         }
 
+        Image {
+            id: whiteboardSpace
+            fillMode: Image.PreserveAspectFit
+            source: "image://whiteboard/image"
+            cache: false
+            Layout.maximumHeight: 600
+            Layout.maximumWidth: 800
+            Layout.alignment: Qt.AlignLeft
+
+            function reload() {
+                source = "image://whiteboard/image?id=" + Date.now()
+            }
+        }
     }
 
+    // Connections {
+
+    //     target: liveImageProvider
+    //     function onImageChanged() {
+    //         opencvImage.reload()
+    //     }
+    // }
     Connections {
         target: whiteboardImageProvider
         function onImageChanged() {

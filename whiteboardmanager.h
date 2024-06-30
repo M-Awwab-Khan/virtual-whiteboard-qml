@@ -2,7 +2,6 @@
 #define WHITEBOARDMANAGER_H
 #include <QObject>
 #include <QImage>
-#include <QTimer>
 #include <opencv2/opencv.hpp>
 
 class WhiteboardManager : public QObject
@@ -17,19 +16,31 @@ public:
 
 signals:
     void newWhiteboardImage(const QImage &image);
+    void newWeightedImage(const QImage &image);
 
 public slots:
     void processFrame(const QImage &frame);
     void clearWhiteboard();
     void saveSnapshot(const QString &filePath);
+    void enableDrawing();
+    void disableDrawing();
 
 private:
     cv::Mat whiteboard;
     QImage qtWhiteboardImage;
-    cv::Scalar lowerColor;
-    cv::Scalar upperColor;
+    QImage qtWeightedImage;
+    const cv::Scalar lowerColor;
+    const cv::Scalar upperColor;
     cv::Point prevPoint;
+    cv::Scalar currentColor;
+    const cv::Rect redArea;
+    const cv::Rect greenArea;
+    const cv::Rect blueArea;
+    const cv::Rect eraserArea;
+    const cv::Rect clearArea;
     bool isDrawing;
+    bool eraserSelected;
+    bool drawingEnabled;
 };
 
 #endif // WHITEBOARDMANAGER_H

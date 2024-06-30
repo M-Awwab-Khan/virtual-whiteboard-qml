@@ -3,11 +3,19 @@
 
 WhiteboardManager::WhiteboardManager(QObject *parent)
     : QObject(parent),
-    lowerColor(cv::Scalar(0, 129, 148)),
+    lowerColor(cv::Scalar(0, 114, 153)),
     upperColor(cv::Scalar(22, 255, 255)),
-    isDrawing(false)
+    currentColor(cv::Scalar(0, 0, 255)),
+    redArea(cv::Rect(0, 0, 50, 50)),
+    greenArea(cv::Rect(60, 0, 50, 50)),
+    blueArea(cv::Rect(120, 0, 50, 50)),
+    eraserArea(cv::Rect(180, 0, 50, 50)),
+    clearArea(cv::Rect(640 - 100, 0, 100, 50)),
+    isDrawing(false),
+    eraserSelected(false),
+    drawingEnabled(false)
 {
-    whiteboard = cv::Mat::zeros(cv::Size(640, 480), CV_8UC3);
+    whiteboard = cv::Mat(cv::Size(640, 480), CV_8UC3, cv::Scalar(255, 255, 255));
 }
 
 WhiteboardManager::~WhiteboardManager()
@@ -17,6 +25,14 @@ WhiteboardManager::~WhiteboardManager()
 QImage WhiteboardManager::getWhiteboardImage() const
 {
     return qtWhiteboardImage;
+}
+
+void WhiteboardManager::enableDrawing() {
+    drawingEnabled = true;
+}
+
+void WhiteboardManager::disableDrawing() {
+    drawingEnabled = false;
 }
 
 void WhiteboardManager::processFrame(const QImage &frame)
@@ -31,7 +47,7 @@ void WhiteboardManager::processFrame(const QImage &frame)
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
-    if (!contours.empty()) {
+    if (!contours.empty() && drawingEnabled) {
         std::sort(contours.begin(), contours.end(), [](const std::vector<cv::Point>& c1, const std::vector<cv::Point>& c2) {
             return cv::contourArea(c1, false) > cv::contourArea(c2, false);
         });
@@ -39,31 +55,62 @@ void WhiteboardManager::processFrame(const QImage &frame)
         cv::Rect boundingRect = cv::boundingRect(contours[0]);
         cv::Point center(boundingRect.x + boundingRect.width / 2, boundingRect.y + boundingRect.height / 2);
 
-        if (isDrawing) {
-            cv::line(whiteboard, prevPoint, center, cv::Scalar(0, 0, 255), 1);
+        // Check if the marker is in any of the selection areas
+        if (clearArea.contains(center)) {
+            clearWhiteboard();
+        } else if (redArea.contains(center)) {
+            currentColor = cv::Scalar(0, 0, 255); // Red
+            eraserSelected = false;
+        } else if (greenArea.contains(center)) {
+            currentColor = cv::Scalar(0, 255, 0); // Green
+            eraserSelected = false;
+        } else if (blueArea.contains(center)) {
+            currentColor = cv::Scalar(255, 0, 0); // Blue
+            eraserSelected = false;
+        } else if (eraserArea.contains(center)) {
+            currentColor = cv::Scalar(255, 255, 255); // White for eraser
+            eraserSelected = true;
+        } else {
+            if (isDrawing) {
+                int thickness = eraserSelected ? 15 : 2; // Larger thickness for eraser
+                cv::line(whiteboard, prevPoint, center, currentColor, thickness);
+            }
+            prevPoint = center;
+            isDrawing = true;
         }
-
-        prevPoint = center;
-        isDrawing = true;
     } else {
         isDrawing = false;
     }
 
-    // cv::cvtColor(whiteboard, whiteboard, cv::COLOR_BGR2RGB);
-    qtWhiteboardImage = QImage(whiteboard.data, whiteboard.cols, whiteboard.rows, QImage::Format_RGB888).rgbSwapped();
+    // Draw the "Clear" button with a distinct background color
+    cv::rectangle(whiteboard, clearArea, cv::Scalar(200, 200, 200), cv::FILLED); // Light gray background
+    cv::putText(whiteboard, "Clear", cv::Point(whiteboard.cols - 90, 30), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0), 1); // Black text
 
-    emit newWhiteboardImage(qtWhiteboardImage);
+    // Draw color selection and eraser buttons
+    cv::rectangle(whiteboard, redArea, cv::Scalar(0, 0, 255), cv::FILLED);
+    cv::rectangle(whiteboard, greenArea, cv::Scalar(0, 255, 0), cv::FILLED);
+    cv::rectangle(whiteboard, blueArea, cv::Scalar(255, 0, 0), cv::FILLED);
+    cv::rectangle(whiteboard, eraserArea, cv::Scalar(200, 200, 200), cv::FILLED);
+    cv::putText(whiteboard, "Eraser", cv::Point(eraserArea.x + 5, eraserArea.y + 30), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0), 1);
+
+    // qtWhiteboardImage = QImage(whiteboard.data, whiteboard.cols, whiteboard.rows, QImage::Format_RGB888).rgbSwapped();
+
+    cv::Mat weightedFrame;
+    cv::addWeighted(matFrame, 0.5, whiteboard, 0.5, 0, weightedFrame);
+
+    qtWeightedImage = QImage(weightedFrame.data, weightedFrame.cols, weightedFrame.rows, QImage::Format_RGB888).rgbSwapped();
+
+    emit newWeightedImage(qtWeightedImage);
+
 }
 
 void WhiteboardManager::clearWhiteboard()
 {
-    whiteboard = cv::Mat::zeros(cv::Size(640, 480), CV_8UC3);
+    whiteboard = cv::Mat(cv::Size(640, 480), CV_8UC3, cv::Scalar(255, 255, 255));
     emit newWhiteboardImage(QImage(whiteboard.data, whiteboard.cols, whiteboard.rows, QImage::Format_RGB888).rgbSwapped());
 }
 
 void WhiteboardManager::saveSnapshot(const QString &filePath)
 {
-    if (!qtWhiteboardImage.isNull()) {
-        qtWhiteboardImage.save(filePath);
-    }
+        QImage(whiteboard.data, whiteboard.cols, whiteboard.rows, QImage::Format_RGB888).rgbSwapped().save(filePath);
 }
