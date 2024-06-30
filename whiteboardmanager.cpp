@@ -22,11 +22,6 @@ WhiteboardManager::~WhiteboardManager()
 {
 }
 
-QImage WhiteboardManager::getWhiteboardImage() const
-{
-    return qtWhiteboardImage;
-}
-
 void WhiteboardManager::enableDrawing() {
     drawingEnabled = true;
 }
@@ -113,4 +108,16 @@ void WhiteboardManager::clearWhiteboard()
 void WhiteboardManager::saveSnapshot(const QString &filePath)
 {
         QImage(whiteboard.data, whiteboard.cols, whiteboard.rows, QImage::Format_RGB888).rgbSwapped().save(filePath);
+}
+
+void WhiteboardManager::loadImage(const QString &filePath) {
+    qDebug() << "image received";
+    QImage image("C:/Users/ic/Documents/whiteboard/build/Desktop_Qt_6_6_3_MSVC2019_64bit-Debug/snapshot1.png");
+    qDebug() << image.isNull();
+    if (!image.isNull()) {
+        qDebug() << "image converted";
+        cv::Mat mat(image.height(), image.width(), CV_8UC3, const_cast<uchar*>(image.bits()), image.bytesPerLine());
+        cv::cvtColor(mat, whiteboard, cv::COLOR_RGB2BGR);
+        emit newWeightedImage(QImage(whiteboard.data, whiteboard.cols, whiteboard.rows, QImage::Format_RGB888).rgbSwapped());
+    }
 }

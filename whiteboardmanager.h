@@ -24,10 +24,10 @@ public slots:
     void saveSnapshot(const QString &filePath);
     void enableDrawing();
     void disableDrawing();
+    void loadImage(const QString &filePath);
 
 private:
     cv::Mat whiteboard;
-    QImage qtWhiteboardImage;
     QImage qtWeightedImage;
     const cv::Scalar lowerColor;
     const cv::Scalar upperColor;
